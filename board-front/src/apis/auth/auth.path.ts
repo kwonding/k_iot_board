@@ -12,4 +12,4 @@ export const AUTH_PATH = {
 
   PASSWORD_RESET: `${AUTH_PREFIX}/password/reset`,
   PASSWORD_VERIFY: `${AUTH_PREFIX}/password/verify`,
-};
+}

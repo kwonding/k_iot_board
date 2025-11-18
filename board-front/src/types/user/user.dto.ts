@@ -11,7 +11,7 @@ export interface UserDetailResponse {
 }
 
 // 리스트 항목
-export interface UserListItemResponse {
+export interface UserListResponse {
 
 }
 
