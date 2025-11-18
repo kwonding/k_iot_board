@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.boardback.entity.base.BaseTimeEntity;
 import org.example.boardback.entity.board.like.BoardLike;
 import org.example.boardback.entity.comment.Comment;
 import org.example.boardback.entity.user.User;
@@ -22,7 +23,7 @@ import java.util.Set;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Board {
+public class Board extends BaseTimeEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", updatable = false)
     private Long id;
