@@ -1,16 +1,20 @@
-# DROP DATABASE IF EXISTS `board_v1`;
+DROP DATABASE IF EXISTS `board_v1`;
 CREATE DATABASE IF NOT EXISTS `board_v1`
 	CHARACTER SET utf8mb4
     COLLATE utf8mb4_general_ci;
 USE `board_v1`;
-select * from users;
 
 SET NAMES utf8mb4;				# 클라이언트와 MySQL 서버 간의 문자 인코딩 설정
 SET FOREIGN_KEY_CHECKS = 0;		# 외래 키 제약 조건 검사를 일시적으로 끄는 설정
 
-show tables;
+# show tables;
+
+select * from boards;
 
 # === 기존 테이블 제거 === #
+DROP TABLE IF EXISTS board_files;
+DROP TABLE IF EXISTS file_infos;
+
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS board_likes;
 DROP TABLE IF EXISTS board_drafts;
@@ -22,6 +26,26 @@ DROP TABLE IF EXISTS user_roles;
 DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS users;
 
+# === FILE_INFO (파일 정보 테이블) === #
+CREATE TABLE file_infos (
+	id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    
+    original_name VARCHAR(255) NOT NULL COMMENT '원본 파일명',
+    stored_name VARCHAR(255) NOT NULL COMMENT 'UUID가 저장된 파일명',
+    content_type VARCHAR(255),
+    file_size BIGINT,
+    file_path VARCHAR(255) NOT NULL COMMENT '서버 내 실제 경로',
+    
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+) 	
+	ENGINE=InnoDB
+	DEFAULT CHARSET = utf8mb4
+	COLLATE = utf8mb4_unicode_ci
+    COMMENT = '파일 정보 테이블';
+    
+    INSERT INTO users (username, password, email, nickname, gender, created_at, updated_at) 
+    VALUES ('user01', 'pw01', 'user01@mail.com', '곰돌이1', 'MALE', NOW(), NOW());
+
 # === USERS (사용자) === #
 CREATE TABLE users (
 	id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -32,6 +56,7 @@ CREATE TABLE users (
     nickname VARCHAR(50) NOT NULL COMMENT '닉네임',
     
     gender VARCHAR(10) COMMENT '성별',
+    profile_file_id BIGINT NULL COMMENT '프로필 이미지 파일 ID',
     
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -39,7 +64,9 @@ CREATE TABLE users (
     CONSTRAINT `uk_users_username` UNIQUE(username),
     CONSTRAINT `uk_users_email` UNIQUE(email),
     CONSTRAINT `uk_users_nickname` UNIQUE(nickname),
-    CONSTRAINT `chk_users_gender` CHECK(gender IN('MALE', 'FEMALE', 'OTHER', 'NONE'))
+    CONSTRAINT `chk_users_gender` CHECK(gender IN('MALE', 'FEMALE', 'OTHER', 'NONE')),
+    CONSTRAINT `fk_users_profile_file` FOREIGN KEY (profile_file_id) REFERENCES file_infos(id) ON DELETE SET NULL
+    
 ) 	ENGINE=InnoDB
 	DEFAULT CHARSET = utf8mb4
 	COLLATE = utf8mb4_unicode_ci
@@ -90,9 +117,6 @@ CREATE TABLE refresh_tokens(
     COMMENT = '리프레시 토큰 저장 테이블';
 
 # === Board / Category (게시판 / 게시판 카테고리) === #
-DROP TABLE IF EXISTS boards;
-DROP TABLE IF EXISTS board_categories;
-
 CREATE TABLE board_categories (
 	id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL COMMENT '카테고리명',
@@ -131,6 +155,24 @@ CREATE TABLE boards (
 	DEFAULT CHARSET = utf8mb4
 	COLLATE = utf8mb4_unicode_ci
     COMMENT = '게시글';
+    
+    select * from board_files;
+
+# === BOARD_FILES (게시글 파일 매핑) === #
+CREATE TABLE board_files (
+	id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    
+    board_id BIGINT NOT NULL,
+    file_id BIGINT NOT NULL,
+    display_order INT DEFAULT 0, -- 대표이미지
+    
+    CONSTRAINT `fk_board_files_board` FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+    CONSTRAINT `fk_board_files_file_info` FOREIGN KEY (file_id) REFERENCES file_infos(id) ON DELETE CASCADE
+)	
+	ENGINE=InnoDB
+	DEFAULT CHARSET = utf8mb4
+	COLLATE = utf8mb4_unicode_ci
+    COMMENT = '게시글 파일 매핑';
 
 # === Comment (게시글 댓글) === #
 CREATE TABLE comments (
