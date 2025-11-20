@@ -7,7 +7,7 @@ USE `board_v1`;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-select * from boards;
+-- select * from boards;
 
 # === 기존 테이블 제거 === #
 DROP TABLE IF EXISTS post_files;

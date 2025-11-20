@@ -6,7 +6,6 @@ import org.example.boardback.dto.board.File.BoardFileListDto;
 import org.example.boardback.dto.board.File.BoardFileUpdateRequestDto;
 import org.example.boardback.entity.file.FileInfo;
 import org.example.boardback.service.impl.BoardFileServiceImpl;
-import org.example.boardback.service.impl.FileServiceImpl;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -45,7 +44,7 @@ public class BoardFileController {
         return ResponseEntity.ok(files);
     }
 
-    @GetMapping("/file/download/{fileId}")
+    @GetMapping("/files/{fileId}/download")
     public ResponseEntity<Resource> download(@PathVariable Long fileId) {
         // service 에서 파일 정보 조회
         FileInfo info = boardFileService.getFileInfo(fileId);
@@ -65,7 +64,7 @@ public class BoardFileController {
                 .body(resource);
     }
 
-    @DeleteMapping("/file/{fileId}")
+    @DeleteMapping("/files/{fileId}")
     public ResponseEntity<Void> deleteFile(@PathVariable Long fileId) {
         boardFileService.deleteBoardFile(fileId);
         return ResponseEntity.noContent().build();

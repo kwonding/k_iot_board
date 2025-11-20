@@ -1,6 +1,7 @@
 package org.example.boardback.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.example.boardback.common.enums.ErrorCode;
 import org.example.boardback.entity.file.FileInfo;
 import org.example.boardback.exception.FileStorageException;
 import org.example.boardback.repository.file.FileInfoRepository;
@@ -60,6 +61,12 @@ public class FileServiceImpl {
 
     /** 프로필 업로드 (1개만 유지) */
     public FileInfo saveUserProfile(MultipartFile file) {
+//        long maxSize = 5 * 1024 * 1024; // 5MB
+//
+//        if (file.getSize() > maxSize) {
+//            throw new IllegalArgumentException("파일 크기가 제한을 초과했습니다.");
+//        }
+
         if (file.isEmpty()) return null;
 
         try {
@@ -88,7 +95,7 @@ public class FileServiceImpl {
             return fileInfoRepository.save(info);
 
         } catch(Exception e) {
-            throw new FileStorageException("프로필 업로드 실패", e);
+            throw new FileStorageException(ErrorCode.INTERNAL_ERROR,"", e);
         }
     }
 
@@ -120,7 +127,7 @@ public class FileServiceImpl {
             return fileInfoRepository.save(info);
 
         } catch(Exception e) {
-            throw new FileStorageException("게시글 파일 업로드 실패", e);
+            throw new FileStorageException(ErrorCode.INTERNAL_ERROR,"", e);
         }
     }
 
@@ -132,7 +139,7 @@ public class FileServiceImpl {
             Files.deleteIfExists(path);
             fileInfoRepository.delete(info);
         } catch (Exception e) {
-            throw new FileStorageException("파일 삭제 실패", e);
+            throw new FileStorageException(ErrorCode.INTERNAL_ERROR,"", e);
         }
     }
 }

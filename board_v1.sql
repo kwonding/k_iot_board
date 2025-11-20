@@ -9,7 +9,7 @@ SET FOREIGN_KEY_CHECKS = 0;		# 외래 키 제약 조건 검사를 일시적으�
 
 # show tables;
 
-select * from boards;
+-- select * from boards;
 
 # === 기존 테이블 제거 === #
 DROP TABLE IF EXISTS board_files;
@@ -42,9 +42,6 @@ CREATE TABLE file_infos (
 	DEFAULT CHARSET = utf8mb4
 	COLLATE = utf8mb4_unicode_ci
     COMMENT = '파일 정보 테이블';
-    
-    INSERT INTO users (username, password, email, nickname, gender, created_at, updated_at) 
-    VALUES ('user01', 'pw01', 'user01@mail.com', '곰돌이1', 'MALE', NOW(), NOW());
 
 # === USERS (사용자) === #
 CREATE TABLE users (

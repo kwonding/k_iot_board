@@ -2,6 +2,7 @@ package org.example.boardback.service.impl;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.example.boardback.common.enums.ErrorCode;
 import org.example.boardback.dto.board.File.BoardFileListDto;
 import org.example.boardback.dto.board.File.BoardFileUpdateRequestDto;
 import org.example.boardback.entity.board.Board;
@@ -46,8 +47,8 @@ public class BoardFileServiceImpl {
 
         int order = 0;
 
-        for (MultipartFile mf: files) {
-            FileInfo info = fileService.saveBoardFile(boardId, mf); // 로컬 저장됨
+        for (MultipartFile mf : files) {
+            FileInfo info = fileService.saveBoardFile(boardId, mf);
 
             BoardFile boardFile = BoardFile.of(board, info, order++);
 
@@ -56,21 +57,21 @@ public class BoardFileServiceImpl {
     }
 
     public List<BoardFileListDto> getFilesByBoard(Long boardId) {
-        final String baseUrl = "/api/file/download/";
+        final String baseURL = "/api/file/download/";
 
         List<BoardFile> boardFiles = boardFileRepository.findByBoardIdOrderByDisplayOrderAsc(boardId);
 
         return boardFiles.stream()
                 .map(BoardFile::getFileInfo)
-                .filter(Objects::nonNull) // fileInfo가 null일 가능성이 있는 경우 (안정성 강화)
-                .map(fileInfo -> BoardFileListDto.fromEntity(fileInfo, baseUrl))
+                .filter(Objects::nonNull) // FileInfo가 null일 가능성이 있는 경우 (안정성 강화)
+                .map(fileInfo -> BoardFileListDto.fromEntity(fileInfo, baseURL))
                 .toList();
     }
 
     /** 파일 정보를 DB에서 조회 */
     public FileInfo getFileInfo(Long fileId) {
         return fileInfoRepository.findById(fileId)
-                .orElseThrow(() -> new FileStorageException("파일 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new FileStorageException(ErrorCode.INTERNAL_ERROR));
     }
 
     public Path loadFile(Long fileId) {
@@ -79,7 +80,7 @@ public class BoardFileServiceImpl {
         Path path = Paths.get(fileInfo.getFilePath());
 
         if (!Files.exists(path) || !Files.isReadable(path)) {
-            throw new FileStorageException("파일이 존재하지 않거나 읽을 수 없습니다.");
+            throw new FileStorageException(ErrorCode.INTERNAL_ERROR);
         }
 
         return path;
@@ -93,7 +94,7 @@ public class BoardFileServiceImpl {
         String contentType = info.getContentType();
         if (contentType == null) {
             try {
-                contentType = Files.probeContentType(path); //ContentType 확인해봐
+                contentType = Files.probeContentType(path);
             } catch (Exception ignored) {}
         }
         headers.setContentType(MediaType.parseMediaType(
@@ -101,6 +102,7 @@ public class BoardFileServiceImpl {
                 // MIME: Multipurpose Internet Mail Extensions 타입
                 contentType != null ? contentType : "application/octet-stream"
         ));
+
         // 파일명 인코딩
         String encodedName = URLEncoder.encode(
                 info.getOriginalName(), StandardCharsets.UTF_8
@@ -108,11 +110,11 @@ public class BoardFileServiceImpl {
         ).replace("+", "%20");
 
         headers.add(HttpHeaders.CONTENT_DISPOSITION,
-                "attachment; filename=\""
-                        + info.getOriginalName().replace("\"", "")
-                        + "\"; "
-                        + "filename*=UTF-8''" + encodedName
-        );
+                    "attachment; filename=\""
+                            + info.getOriginalName().replace("\"", "")
+                            + "\"; "
+                            + "filename*=UTF-8''" + encodedName
+                );
 
         // Content-Length 포함 (다운로드 진행률 표시용)
         headers.setContentLength(info.getFileSize());
@@ -123,7 +125,7 @@ public class BoardFileServiceImpl {
     @Transactional
     public void deleteBoardFile(Long fileId) {
         BoardFile boardFile = boardFileRepository.findByFileInfoId(fileId)
-                .orElseThrow(() -> new FileStorageException("해당 파일은 게시글에 존재하지 않습니다."));
+                .orElseThrow(() -> new FileStorageException(ErrorCode.INTERNAL_ERROR));
 
         FileInfo fileInfo = boardFile.getFileInfo();
 
@@ -134,9 +136,9 @@ public class BoardFileServiceImpl {
 
     /**
      * 수정 요청 시 전달 데이터
-     * boardId
-     * keepFileIds: List<Long> - 유지할 기존 파일 ID 목록
-     * newFiles: List<MultipartFile> - 새로 업로드한 파일 목록
+     *  boardId
+     *  keepFileIds: List<Long> - 유지할 기존 파일 ID 목록
+     *  newFiles: List<MultipartFile> - 새로 업로드한 파일 목록
      *
      * [ 서버 처리 순서 ]
      * 1. 기존 파일 목록 조회
@@ -147,7 +149,7 @@ public class BoardFileServiceImpl {
     @Transactional
     public void updateBoardFiles(Long boardId, BoardFileUpdateRequestDto dto) {
         List<Long> keepIds = dto.getKeepFileIds() == null
-                ? List.of() // 빈 배열 반환
+                ? List.of()
                 : dto.getKeepFileIds();
 
         List<MultipartFile> newFiles = dto.getNewFiles();
@@ -157,22 +159,27 @@ public class BoardFileServiceImpl {
 
         // 2. 삭제 대상 선정
         List<BoardFile> deleteTargets = currentFiles.stream()
-                // 현재 파일 목록을 순회하여 유지할 기존 File 목록(id)에 해당 파일 info id값이 포함되어 있지 않을 경우
+                // 현재 파일 목록을 순회하여
+                // 유지할 기존 File 목록(id)에 해당 파일의 info id 값이 포함되어 있지 않을 경우
                 // 해당(포함되어 있지 않은) 파일을 새로운 배열에 담기!
-                .filter(boardFile -> !keepIds.contains(boardFile.getFileInfo().getId()))
+                .filter(boardFile -> {
+                    FileInfo info = boardFile.getFileInfo();
+                    return info == null || !keepIds.contains(info.getId());
+                })
                 .toList();
 
         // 3. 삭제 처리
-        for (BoardFile bf: deleteTargets) {
+        for (BoardFile bf : deleteTargets) {
+            boardFileRepository.delete(bf);             // board_files 삭제
             FileInfo info = bf.getFileInfo();
-            boardFileRepository.delete(bf);           // board_files 삭제
             if (info != null) {
-                fileService.deleteFile(info); // 디스크 + file_info 삭제
+                fileService.deleteFile(info);           // 디스크 + file_infos 삭제
             }
         }
 
         // 4. 신규 파일 추가
         if (newFiles != null && !newFiles.isEmpty()) {
+            System.out.println(newFiles);
             Board board = boardRepository.findById(boardId)
                     .orElseThrow(() -> new EntityNotFoundException("해당 id의 게시글이 없습니다."));
 
@@ -182,7 +189,8 @@ public class BoardFileServiceImpl {
                     .max()
                     .orElse(-1);
 
-            for (MultipartFile mf: newFiles) {
+            System.out.println(maxOrder);
+            for (MultipartFile mf : newFiles) {
                 FileInfo info = fileService.saveBoardFile(boardId, mf);
 
                 BoardFile bf = BoardFile.of(board, info, ++maxOrder);
